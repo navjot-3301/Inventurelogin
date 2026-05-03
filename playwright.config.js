@@ -47,7 +47,29 @@ module.exports = defineConfig({
         contextOptions: {
           // fresh session for every test — mirrors incognito behaviour
           storageState: undefined,
+          
         },
+        launchOptions: {
+      args: ['--start-maximized'],
+        },
+      },
+    },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        launchOptions: {
+          args: ['--start-maximized'],
+        },
+      },
+    },
+    {
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        launchOptions: {
+          args: ['--start-maximized'],
+        },    
       },
     },
   ],
