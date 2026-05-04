@@ -37,8 +37,8 @@ jobs:
         run: npm ci
 
       # ── 4. Install Playwright browsers ──────────────────────────────────────
-      - name: Install Playwright Chromium + deps
-        run: npx playwright install chromium --with-deps
+      - name: Install Playwright browsers + deps
+        run: npx playwright install --with-deps
 
       # ── 5. Create .env from GitHub Secrets ──────────────────────────────────
       - name: Create .env file
