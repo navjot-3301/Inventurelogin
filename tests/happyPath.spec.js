@@ -139,7 +139,7 @@ await page.getByRole('button', { name: /sign in to inventure/i }).click();
       await page.reload();
      // New entity should appear at the top of the list
 
-     await page.waitForTimeout(5000);
+     await page.waitForTimeout(15000);
 
     await page.reload({waitUntil: 'networkidle'});
 

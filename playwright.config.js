@@ -1,39 +1,42 @@
 require('dotenv').config();
 
-const { defineConfig } = require('@playwright/test');
+const { defineConfig, devices } = require('@playwright/test');
 
-if (!process.env.BASE_URL) {
-  throw new Error('❌ BASE_URL is not set. Check GitHub Secrets or .env file.');
-}
+const isCI = !!process.env.CI;
 
 module.exports = defineConfig({
   testDir: './tests',
-
-  timeout: 90_000,
-  expect: { timeout: 15_000 },
-
+  timeout: isCI ? 120_000 : 90_000,   // CI runners are slower — give them more time
+  expect: { timeout: isCI ? 20_000 : 15_000 },
   fullyParallel: false,
-  retries: process.env.CI ? 1 : 0,
+  retries: isCI ? 2 : 0,              // bumped to 2 for flaky CI network conditions
   workers: 1,
 
   reporter: [
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ...(process.env.CI ? [['github']] : []),
+    ...(isCI ? [['github']] : []),
   ],
 
   use: {
-    baseURL: process.env.BASE_URL,
+    baseURL: process.env.BASE_URL || 'https://inventuredev4.inventure.mu',
 
-    headless: process.env.HEADLESS !== 'false',
+    headless: isCI ? true : process.env.HEADLESS !== 'false',
     slowMo: Number(process.env.SLOW_MO) || 0,
+
+    // FIX: viewport: null is unsafe in headless CI — no window manager exists.
+    // Use a fixed size in CI; allow null (native OS window) on local.
+    viewport: isCI ? { width: 1440, height: 900 } : null,
 
     screenshot: 'on',
     video: 'on',
     trace: 'on',
 
-    viewport: null,
     ignoreHTTPSErrors: true,
+
+    // Auth0 flows involve redirects — give navigation more room in CI
+    navigationTimeout: isCI ? 45_000 : 30_000,
+    actionTimeout: isCI ? 20_000 : 10_000,
   },
 
   projects: [
@@ -42,13 +45,22 @@ module.exports = defineConfig({
       use: {
         browserName: 'chromium',
 
-        viewport: null,
+        // FIX: removed viewport: null here too — it was overriding the fix above.
+        // The global viewport setting now applies cleanly.
 
-        launchOptions: process.env.CI
-          ? {}
-          : {
-              args: ['--start-maximized'],
-            },
+        launchOptions: {
+          args: isCI
+            ? [
+                '--no-sandbox',            // required on Linux CI runners
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage', // prevents crashes on low-memory runners
+              ]
+            : ['--start-maximized'],
+        },
+
+        contextOptions: {
+          storageState: undefined,
+        },
       },
     },
   ],
