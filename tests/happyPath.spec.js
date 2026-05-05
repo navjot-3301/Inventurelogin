@@ -37,7 +37,10 @@ test('TC-HP-01: Successful login with valid email, password, and MFA OTP', async
   const createClient = new CreateClientPage(page);
   // Step 1-2: Navigate and wait for Auth0 redirect
   await login.goto();
-  await page.getByRole('button', { name: /sign in to inventure/i }).click();
+
+await page.waitForLoadState('networkidle');
+
+await page.getByRole('button', { name: /sign in to inventure/i }).click();
   await page.waitForURL(/auth0\.com/, { timeout: 30_000 });
 
   // Step 3: Verify login page UI
