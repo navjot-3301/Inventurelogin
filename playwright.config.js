@@ -36,7 +36,7 @@ module.exports = defineConfig({
 
   projects: [
     {
-      name: 'chromium-incognito',
+      name: 'chromium',
       use: {
         browserName: 'chromium',
 
@@ -54,21 +54,6 @@ module.exports = defineConfig({
         },
       },
     },
-
-    // {
-    //   name: 'firefox',
-    //   use: {
-    //     ...devices['Desktop Firefox'],
-    //     viewport: { width: 1920, height: 1080 }, // best possible
-    //   },
-    // },
-
-    // {
-    //   name: 'webkit',
-    //   use: {
-    //     ...devices['Desktop Safari'],
-    //     viewport: { width: 1920, height: 1080 },
-    //   },
-    // },
+  
   ],
 });

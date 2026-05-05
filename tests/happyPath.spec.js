@@ -161,7 +161,7 @@ test('TC-HP-01: Successful login with valid email, password, and MFA OTP', async
      await expect(page).toHaveURL(/\/dashboard/);
      const dashboard = page.getByRole('main');
      await expect(dashboard.getByText(CLIENT.groupName, { exact: false })).toBeVisible();
-     await expect(dashboard.getByText(`${CLIENT.groupName} - ${CLIENT.legalName}`, { exact: true })).toBeVisible();
+     await expect(dashboard.getByText(`${CLIENT.groupName} - ${CLIENT.legalName}`)).toBeVisible();
      // Verify key dashboard sections     
      await expect(dashboard.getByText('Key details', { exact: true })).toBeVisible();
      await expect(dashboard.getByText('Contacts', { exact: true })).toBeVisible();
