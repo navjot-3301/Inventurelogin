@@ -16,7 +16,7 @@ on:
 
 jobs:
   playwright-tests:
-    name: Playwright Happy Path
+    name: Playwright Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -59,9 +59,9 @@ jobs:
           name: Debug BASE_URL
           run: echo "BASE_URL=${{ secrets.BASE_URL }}"
 
-          
+
       # ── 6. Run tests ─────────────────────────────────────────────────────────
-      - name: Run Happy Path tests
+      - name: Run tests
       # run: npm run test:ci 
         run: npx playwright test --project=chromium
         env:
