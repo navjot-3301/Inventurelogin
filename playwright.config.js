@@ -1,5 +1,6 @@
 require('dotenv').config();
-
+import dotenv from 'dotenv';
+dotenv.config();
 const { defineConfig, devices } = require('@playwright/test');
 
 const isCI = !!process.env.CI;
