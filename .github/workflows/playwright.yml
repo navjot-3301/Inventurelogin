@@ -46,7 +46,10 @@ jobs:
 
       - name: Create .env file
         run: |
-          cat <<EOF > .env
+          cat > .env <<EOF
+          DEFAULT_TIMEOUT=60000
+          NAVIGATION_TIMEOUT=30000
+          CI=true
           BASE_URL=${{ secrets.BASE_URL }}
           AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
           TEST_EMAIL=${{ secrets.TEST_EMAIL }}
@@ -64,6 +67,16 @@ jobs:
         env:
           CI: true
           BASE_URL: ${{ secrets.BASE_URL }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+          HEADLESS: 'true'
+          SLOW_MO: '0'
+          SCREENSHOTS_DIR: 'screenshots'
+          VIDEOS_DIR: 'videos'
+
 
       - name: Upload HTML report
         if: always()
