@@ -19,7 +19,7 @@ module.exports = defineConfig({
   ],
 
   use: {
-    baseURL: process.env.BASE_URL || 'https://inventuredev4.inventure.mu',
+    baseURL: 'https://inventuredev4.inventure.mu' || process.env.BASE_URL,
 
     headless: process.env.HEADLESS !== 'false',
     slowMo: Number(process.env.SLOW_MO) || 0,
