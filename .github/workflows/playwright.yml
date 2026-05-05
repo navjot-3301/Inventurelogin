@@ -56,6 +56,10 @@ jobs:
           VIDEOS_DIR=videos
           EOF
 
+          name: Debug BASE_URL
+          run: echo "BASE_URL=${{ secrets.BASE_URL }}"
+
+          
       # ── 6. Run tests ─────────────────────────────────────────────────────────
       - name: Run Happy Path tests
       # run: npm run test:ci 
