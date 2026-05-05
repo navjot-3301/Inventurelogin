@@ -1,25 +1,29 @@
 require('dotenv').config();
 
-const { defineConfig, devices } = require('@playwright/test');
+const { defineConfig } = require('@playwright/test');
 
-const isCI = !!process.env.CI;
+if (!process.env.BASE_URL) {
+  throw new Error('❌ BASE_URL is not set. Check GitHub Secrets or .env file.');
+}
 
 module.exports = defineConfig({
   testDir: './tests',
+
   timeout: 90_000,
   expect: { timeout: 15_000 },
+
   fullyParallel: false,
-  retries: isCI ? 1 : 0,
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
 
   reporter: [
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ...(isCI ? [['github']] : []),
+    ...(process.env.CI ? [['github']] : []),
   ],
 
   use: {
-    baseURL: process.env.BASE_URL || 'https://inventuredev4.inventure.mu',
+    baseURL: process.env.BASE_URL,
 
     headless: process.env.HEADLESS !== 'false',
     slowMo: Number(process.env.SLOW_MO) || 0,
@@ -40,15 +44,11 @@ module.exports = defineConfig({
 
         viewport: null,
 
-        launchOptions: isCI
+        launchOptions: process.env.CI
           ? {}
           : {
               args: ['--start-maximized'],
             },
-
-        contextOptions: {
-          storageState: undefined,
-        },
       },
     },
   ],
