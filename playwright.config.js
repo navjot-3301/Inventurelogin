@@ -1,6 +1,5 @@
 require('dotenv').config();
-import dotenv from 'dotenv';
-dotenv.config();
+
 const { defineConfig, devices } = require('@playwright/test');
 
 const isCI = !!process.env.CI;
@@ -29,9 +28,7 @@ module.exports = defineConfig({
     video: 'on',
     trace: 'on',
 
-    // ❗ Let project control viewport
-    viewport: undefined,
-
+    viewport: null,
     ignoreHTTPSErrors: true,
   },
 
@@ -41,7 +38,6 @@ module.exports = defineConfig({
       use: {
         browserName: 'chromium',
 
-        // ✅ Fullscreen works now
         viewport: null,
 
         launchOptions: isCI
@@ -55,6 +51,5 @@ module.exports = defineConfig({
         },
       },
     },
-  
   ],
 });
