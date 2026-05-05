@@ -1,4 +1,3 @@
-// playwright.config.js
 require('dotenv').config();
 
 const { defineConfig, devices } = require('@playwright/test');
@@ -23,15 +22,14 @@ module.exports = defineConfig({
     baseURL: process.env.BASE_URL || 'https://inventuredev4.inventure.mu',
 
     headless: process.env.HEADLESS !== 'false',
-
     slowMo: Number(process.env.SLOW_MO) || 0,
 
     screenshot: 'on',
     video: 'on',
-    trace: 'retain-on-failure',
+    trace: 'on',
 
-    // ✅ FIXED: Fullscreen logic
-    viewport: isCI ? { width: 1920, height: 1080 } : null,
+    // ❗ Let project control viewport
+    viewport: undefined,
 
     ignoreHTTPSErrors: true,
   },
@@ -40,34 +38,37 @@ module.exports = defineConfig({
     {
       name: 'chromium-incognito',
       use: {
-        ...devices['Desktop Chrome'],
+        browserName: 'chromium',
 
-        contextOptions: {
-          storageState: undefined,
-        },
+        // ✅ Fullscreen works now
+        viewport: null,
 
         launchOptions: isCI
           ? {}
           : {
               args: ['--start-maximized'],
             },
+
+        contextOptions: {
+          storageState: undefined,
+        },
       },
     },
 
-    {
-      name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        viewport: { width: 1920, height: 1080 }, // Firefox doesn't fully support maximize
-      },
-    },
+    // {
+    //   name: 'firefox',
+    //   use: {
+    //     ...devices['Desktop Firefox'],
+    //     viewport: { width: 1920, height: 1080 }, // best possible
+    //   },
+    // },
 
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        viewport: { width: 1920, height: 1080 },
-      },
-    },
+    // {
+    //   name: 'webkit',
+    //   use: {
+    //     ...devices['Desktop Safari'],
+    //     viewport: { width: 1920, height: 1080 },
+    //   },
+    // },
   ],
 });

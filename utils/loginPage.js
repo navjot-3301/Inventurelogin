@@ -110,12 +110,20 @@ async togglePasswordHide() {
     name: /continue without passkeys/i
   });
 
+  // try clicking if visible (no waitFor)
+  if (await skipPasskeys.isVisible().catch(() => false)) {
+    await skipPasskeys.click();
+    return;
+  }
+
+  if (await skipButton.isVisible().catch(() => false)) {
+    await skipButton.click();
+    return;
+  }
+}
+
+  async skipPasskeys() {
   try {
-    // wait a bit longer because Auth0 is slow here
-    await Promise.race([
-      skipPasskeys.waitFor({ timeout: 10000 }),
-      skipButton.waitFor({ timeout: 10000 })
-    ]);
 
     const target =
       (await skipPasskeys.isVisible().catch(() => false))
