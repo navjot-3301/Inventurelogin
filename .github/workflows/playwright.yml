@@ -59,7 +59,7 @@ jobs:
       # ── 6. Run tests ─────────────────────────────────────────────────────────
       - name: Run Happy Path tests
       # run: npm run test:ci 
-        run: npx playwright test --project=chromium
+        run: npx playwright test --project=chromium-incognito
         env:
           CI: true
 
