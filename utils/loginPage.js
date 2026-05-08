@@ -1,19 +1,14 @@
 // utils/loginPage.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Page-Object helper for the Inventure / Auth0 login flow.
-// ─────────────────────────────────────────────────────────────────────────────
 
 const path = require('path');
 const fs   = require('fs');
 
 class LoginPage {
-  /**
-   * @param {import('@playwright/test').Page} page
-   */
-  constructor(page) {
+  constructor(page, userIndex = 0) {
     this.page = page;
+    this.userIndex = userIndex;
 
-    // ── Locators ────────────────────────────────────────────────
     this.emailField     = page.getByLabel(/username or email address/i);
     this.continueBtn    = page.getByRole('button', { name: 'Continue', exact: true });
     this.passwordField  = page.locator('input[type="password"]');
@@ -26,8 +21,6 @@ class LoginPage {
     this.mfaHeading     = page.getByRole('heading', { name: /verify your identity/i });
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-
   async screenshot(name) {
     const dir = process.env.SCREENSHOTS_DIR || 'screenshots';
     fs.mkdirSync(dir, { recursive: true });
@@ -37,8 +30,6 @@ class LoginPage {
       fullPage: true,
     });
   }
-
-  // ── Navigation ─────────────────────────────────────────────────────────────
 
   async goto() {
     await this.page.goto(process.env.BASE_URL || '/');
@@ -51,34 +42,59 @@ class LoginPage {
     await this.screenshot('01_app_loading');
   }
 
-  // ── Login Steps ───────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // Credentials resolver (parallel-safe)
+  // ─────────────────────────────────────────────────────────────
+  getCredentials() {
+    const idx = this.userIndex + 1;
 
+    const email = process.env[`TEST_EMAIL${idx}`];
+    const password = process.env[`TEST_PASSWORD${idx}`];
+
+    if (!email || !password) {
+      throw new Error(`Missing TEST_EMAIL${idx} or TEST_PASSWORD${idx}`);
+    }
+
+    return { email, password };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // FIXED: Safe enterEmail (NO undefined crash)
+  // ─────────────────────────────────────────────────────────────
   async enterEmail(email) {
+    const creds = this.getCredentials();
+    const value = email || creds.email;
+
+    if (!value) {
+      throw new Error(`Email is undefined for userIndex ${this.userIndex}`);
+    }
+
     await this.emailField.waitFor({ state: 'visible' });
-    await this.emailField.fill(email);
+    await this.emailField.fill(value);
 
     await this.screenshot('02_email_entered');
     await this.continueBtn.click();
     await this.screenshot('03_after_email_continue');
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // FIXED: Safe enterPassword
+  // ─────────────────────────────────────────────────────────────
   async enterPassword(password) {
+    const creds = this.getCredentials();
+    const value = password || creds.password;
+
+    if (!value) {
+      throw new Error(`Password is undefined for userIndex ${this.userIndex}`);
+    }
+
     await this.passwordField.waitFor({ state: 'visible' });
-    await this.passwordField.fill(password);
+    await this.passwordField.fill(value);
 
     await this.screenshot('04_password_entered');
     await this.continueBtn.click();
     await this.screenshot('05_after_password_continue');
   }
-
- async togglePasswordVisibility() {
-  await this.eyeIcon.click({ timeout: 10000 });
-  await this.screenshot('04b_password_revealed');
-}
-async togglePasswordHide() {
-  await this.eyeIcon.click({ timeout: 10000 });
-  await this.screenshot('05b_password_hide');
-}
 
   async enterOTP(otp) {
     await this.mfaHeading.waitFor({ state: 'visible' });
@@ -92,58 +108,25 @@ async togglePasswordHide() {
     await this.screenshot('08_after_otp_continue');
   }
 
-  async resendOTP() {
-    await this.resendLink.waitFor({ state: 'visible' });
-    await this.resendLink.click();
+  async skipPasskeysIfPresent() {
+    const skipPasskeys = this.page.getByRole('link', {
+      name: /continue without passkeys/i
+    });
 
-    await this.screenshot('06b_otp_resent');
-  }
+    const skipButton = this.page.getByRole('button', {
+      name: /continue without passkeys/i
+    });
 
-  // ── 🔥 NEW: PASSKEY HANDLING ───────────────────────────────────────────────
-
- async skipPasskeysIfPresent() {
-  const skipPasskeys = this.page.getByRole('link', {
-    name: /continue without passkeys/i
-  });
-
-  const skipButton = this.page.getByRole('button', {
-    name: /continue without passkeys/i
-  });
-
-  // try clicking if visible (no waitFor)
-  if (await skipPasskeys.isVisible().catch(() => false)) {
-    await skipPasskeys.click();
-    return;
-  }
-
-  if (await skipButton.isVisible().catch(() => false)) {
-    await skipButton.click();
-    return;
-  }
-}
-
-  async skipPasskeys() {
-  try {
-
-    const target =
-      (await skipPasskeys.isVisible().catch(() => false))
-        ? skipPasskeys
-        : skipButton;
-
-    if (await target.isVisible()) {
-      await target.click();
-      console.log('➡️ Skipped passkey enrollment');
-
-      // wait for Auth0 redirect after click
-      await this.page.waitForLoadState('networkidle').catch(() => {});
+    if (await skipPasskeys.isVisible().catch(() => false)) {
+      await skipPasskeys.click();
+      return;
     }
 
-  } catch (e) {
-    // Passkey screen not shown — normal flow continues
+    if (await skipButton.isVisible().catch(() => false)) {
+      await skipButton.click();
+      return;
+    }
   }
-}
-
-  // ── 🔥 FIXED DASHBOARD WAIT (NO URL RELIANCE) ─────────────────────────────
 
   async waitForDashboard() {
     await this.page.waitForLoadState('networkidle').catch(() => {});
@@ -157,23 +140,27 @@ async togglePasswordHide() {
 
     await this.screenshot('09_dashboard_loaded');
   }
+
   async clickCreateClient() {
-  const createClientBtn = this.page.getByRole('button', {
-    name: /create client/i
-  });
+    const createClientBtn = this.page.getByRole('button', {
+      name: /create client/i
+    });
 
-  await createClientBtn.waitFor({ state: 'visible', timeout: 15000 });
-  await createClientBtn.click();
+    await createClientBtn.waitFor({ state: 'visible', timeout: 15000 });
+    await createClientBtn.click();
 
-  await this.screenshot('10_create_client_clicked');
-}
+    await this.screenshot('10_create_client_clicked');
+  }
 
-  // ── Full Flow ──────────────────────────────────────────────────────────────
-
+  // ─────────────────────────────────────────────────────────────
+  // FULL FLOW (safe for parallel runs)
+  // ─────────────────────────────────────────────────────────────
   async login(email, password, otp) {
+    const creds = this.getCredentials();
+
     await this.goto();
-    await this.enterEmail(email);
-    await this.enterPassword(password);
+    await this.enterEmail(email || creds.email);
+    await this.enterPassword(password || creds.password);
     await this.enterOTP(otp);
     await this.skipPasskeysIfPresent();
     await this.waitForDashboard();

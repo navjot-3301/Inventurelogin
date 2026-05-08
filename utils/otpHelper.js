@@ -1,94 +1,98 @@
-const { chromium } = require('@playwright/test');
-
-const OTP_SENDER = 'noreply@inventure.com';
-const testEmail = process.env.TEST_EMAIL;
-const OTP_SUBJECT_KEYWORD = 'Inventure Portal';
 const OTP_CODE_REGEX = /\b(\d{6})\b/;
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_WAIT_MS = 60000;
 
-async function fetchOTPFromGmail(gmailUser, gmailPassword) {
+async function fetchOTPFromGmail(page, gmailUser, gmailPassword, workerIndex = 0) {
   const user = gmailUser || process.env.GMAIL_USER;
   const password = gmailPassword || process.env.GMAIL_PASSWORD;
 
-  if (!user || !password) {
-    throw new Error('GMAIL_USER and GMAIL_PASSWORD must be set');
+  const testEmail =
+    process.env[`TEST_EMAIL${workerIndex + 1}`] || process.env.TEST_EMAIL;
+
+  if (!user || !password || !testEmail) {
+    throw new Error(`Missing credentials for worker ${workerIndex}`);
   }
 
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext();
-  const page = await context.newPage();
+  const context = page.context();
+  const otpPage = await context.newPage();
 
   try {
-    // 🔐 Login
-    await page.goto('https://mail.google.com/');
+    // 🔐 Open Gmail
+    await otpPage.goto('https://mail.google.com/', {
+      waitUntil: 'networkidle',
+    });
 
-    await page.getByLabel(/email or phone/i).fill(user);
-    await page.getByRole('button', { name: /next/i }).click();
+    // Login
+    await otpPage.getByLabel(/email or phone/i).fill(user);
+    await otpPage.getByRole('button', { name: /next/i }).click();
 
-    await page.getByLabel(/enter your password/i).waitFor({ timeout: 10000 });
-    await page.getByLabel(/enter your password/i).fill(password);
-    await page.getByRole('button', { name: /next/i }).click();
+    await otpPage.getByLabel(/enter your password/i).waitFor({ timeout: 15000 });
+    await otpPage.getByLabel(/enter your password/i).fill(password);
+    await otpPage.getByRole('button', { name: /next/i }).click();
 
-    await page.waitForURL(/mail\.google\.com/, { timeout: 30000 });
+    await otpPage.waitForSelector('div[role="main"]', { timeout: 30000 });
 
-    const searchQuery = `to:${testEmail}`;
+    const searchBox = otpPage.locator('input[aria-label="Search mail"]');
+    await searchBox.waitFor({ state: 'visible', timeout: 60000 });
+
+    // 🔥 ONLY EMAIL SEARCH (as you requested)
+    await searchBox.fill(`to:${testEmail}`);
+    await searchBox.press('Enter');
+
     const deadline = Date.now() + MAX_WAIT_MS;
 
-    const searchBox = page.locator('input[aria-label="Search mail"]');
-
     while (Date.now() < deadline) {
+      await otpPage.waitForTimeout(POLL_INTERVAL_MS);
 
-      // 🔍 Search mail
-      await searchBox.fill(searchQuery);
-      await searchBox.press('Enter');
+      const rows = otpPage.locator('div[role="main"] tr');
+      const count = await rows.count();
 
-      // ⏳ wait for inbox to render properly
-      await page.waitForSelector('div[role="main"]', { timeout: 15000 });
-      await page.waitForTimeout(3000);
+      if (count === 0) {
+        console.log(`📭 Worker ${workerIndex}: waiting for emails...`);
+        continue;
+      }
 
-      // 📬 stable row selection (NO .zA)
-      const rows = page.locator('div[role="main"] tr');
+      // 🔥 ALWAYS TAKE LATEST EMAIL FIRST (CRITICAL FIX)
+      for (let i = 0; i < Math.min(count, 10); i++) {
+        const row = rows.nth(i);
 
-      const emailRow = rows.filter({
-        hasText: OTP_SUBJECT_KEYWORD
-      }).first();
+        const text = await row.innerText().catch(() => '');
 
-      const count = await emailRow.count();
-      console.log(`📬 Matching rows: ${count}`);
+        // We DO NOT check subject anymore
+        // Only ensure it's a real email row
+        if (!text || text.trim().length === 0) continue;
 
-      if (count > 0) {
+        await row.click();
 
-        await emailRow.scrollIntoViewIfNeeded();
-        await emailRow.click({ timeout: 10000 });
+        const body = otpPage.locator('div.a3s').first();
+        await body.waitFor({ timeout: 15000 });
 
-        // 📧 wait for email body
-        const body = page.locator('div.a3s');
-
-        await body.first().waitFor({ timeout: 10000 });
-
-        const bodyText = await body.first().innerText();
-        console.log('📧 Email body:', bodyText);
+        const bodyText = await body.innerText();
 
         const match = bodyText.match(OTP_CODE_REGEX);
 
         if (match) {
           const otp = match[1];
-          console.log('🔐 OTP extracted:', otp);
-          return otp;
-        } else {
-          console.log('⚠️ OTP not found, retrying...');
-        }
-      }
 
-      await page.waitForTimeout(POLL_INTERVAL_MS);
+          console.log(
+            `🔐 Worker ${workerIndex} OTP for ${testEmail}: ${otp}`
+          );
+
+          return otp;
+        }
+
+        console.log(
+          `⚠️ Worker ${workerIndex}: No OTP in this email, checking next...`
+        );
+
+        await otpPage.goBack().catch(() => {});
+      }
     }
 
-    throw new Error(`OTP email not found after ${MAX_WAIT_MS / 1000}s`);
-
+    throw new Error(`OTP not found for ${testEmail} after ${MAX_WAIT_MS / 1000}s`);
   } finally {
-    await browser.close();
+    await otpPage.close();
   }
 }
 

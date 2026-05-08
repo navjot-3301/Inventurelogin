@@ -6,11 +6,20 @@ const isCI = !!process.env.CI;
 
 module.exports = defineConfig({
   testDir: './tests',
+
   timeout: 90_000,
-  expect: { timeout: 15_000 },
-  fullyParallel: false,
+
+  expect: {
+    timeout: 15_000,
+  },
+
+  fullyParallel: true,
+
   retries: isCI ? 1 : 0,
-  workers: 1,
+
+  workers: isCI ? 4 : 2,
+
+  forbidOnly: isCI,
 
   reporter: [
     ['list'],
@@ -19,35 +28,69 @@ module.exports = defineConfig({
   ],
 
   use: {
-    baseURL: 'https://inventuredev4.inventure.mu' || process.env.BASE_URL,
+    baseURL:
+      process.env.BASE_URL || 'https://inventuredev4.inventure.mu/',
 
-    headless: process.env.HEADLESS !== 'false',
-    slowMo: Number(process.env.SLOW_MO) || 0,
+    headless: isCI,
 
-    screenshot: 'on',
-    video: 'on',
-    trace: 'on',
+    slowMo: isCI ? 0 : Number(process.env.SLOW_MO) || 0,
+
+    screenshot: 'only-on-failure',
+
+    video: 'retain-on-failure',
+
+    trace: 'retain-on-failure',
 
     viewport: { width: 1280, height: 800 },
+
     ignoreHTTPSErrors: true,
+
+    actionTimeout: 15000,
+
+    navigationTimeout: 30000,
+
+    // ✅ THIS makes each test behave like "private window"
+    contextOptions: {
+      storageState: undefined, // no login reuse
+    },
   },
 
   projects: [
+    // ================= CHROME =================
     {
-      name: 'chromium',
-      use: {
-        browserName: 'chromium',
+      name: 'chrome',
 
-        viewport: null,
+      use: {
+        ...devices['Desktop Chrome'],
+
+        channel: 'chrome',
+
+        contextOptions: {
+          storageState: undefined, // fresh incognito-like session
+        },
 
         launchOptions: isCI
           ? {}
           : {
-              args: ['--start-maximized'],
+              args: [
+                '--start-maximized',
+
+                // optional: helps enforce clean session behavior
+                '--incognito',
+              ],
             },
+      },
+    },
+
+    // ================= FIREFOX =================
+    {
+      name: 'firefox',
+
+      use: {
+        ...devices['Desktop Firefox'],
 
         contextOptions: {
-          storageState: undefined,
+          storageState: undefined, // fresh session per test
         },
       },
     },
